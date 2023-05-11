@@ -164,7 +164,7 @@
 
   - Eight  of these bits (or flags) are of interest to application programmers writing  assembly language programs: the **overflow**, **direction**, **interrupt disable**, **sign**, **zero**, **auxiliary carry**, **parity**, and **carry flags**.
 
-    <img src="../2023.5.4-2023.5.7/1.png" style="zoom:50%;" />
+    <img src="../2023.5.4-2023.5.7/1.png" style="zoom: 33%;" />
 
     **Note:**
 
@@ -181,7 +181,7 @@
 
   label is a legal MASM identifier and directive is one of the **directives appearing in the following table**:
 
-  <img src="../2023.5.4-2023.5.7/2.png" style="zoom:50%;" />
+  <img src="../2023.5.4-2023.5.7/2.png" style="zoom: 33%;" />
 
   The question mark (?) operand tells MASM that the **object will not have an explicit value** when the program loads into memory (**the default initialization is zero**). for example:
 
@@ -220,11 +220,11 @@
   i64 sqword ?
   ~~~
 
-  <img src="../2023.5.4-2023.5.7/3.png" style="zoom: 50%;" />
+  <img src="../2023.5.4-2023.5.7/3.png" style="zoom: 33%;" />
 
 - During assembly, MASM associates a data type with every label you define,  including variables.
 
-  <img src="../2023.5.4-2023.5.7/4.png" style="zoom:50%;" />
+  <img src="../2023.5.4-2023.5.7/4.png" style="zoom: 33%;" />
 
 - MASM allows you to declare manifest **constants** by using the **= directive**. A  manifest constant is **a symbolic name (identifier) that MASM associates with a value**. Everywhere the symbol appears in the program, MASM will **directly substitute** the value of that symbol for the symbol. this is the same Mechanism with
 
@@ -246,6 +246,158 @@
 
   ~~~assembly
   mov destination_operand, source_operand
+  ~~~
+
+  The source_operand may be a (general-purpose) register, a memory variable, or a **constant**. The destination_operand may be a register or a memory  variable, but can not be a constant. for example:
+  
+  ~~~assembly
+  	.DATA
+  flag = 1
+  var1 qword 1000
+  var2 qword 127
+  	.CODE
+  asmFunc proc;
+  	mov RAX,var1;
+  	mov RBX,var2;
+  	mov RCX,flag;
+  	ret;
+  asmFunc endp;
+  ~~~
+  
+  **Note:**
+  
+  1. The **x86-64 instruction set does not allow both operands to be memory variables**.
+  
+  2. The mov instruction’s operands must **both be the same size**. it is not allowed to mix the sizes of the operands. all MASM really cares about is the **size of the memory operands,**  not that you wouldn’t normally load a floating-point variable into a general-purpose register.
+  
+     <img src="../2023.5.4-2023.5.7/5.png" style="zoom: 33%;" />
+  
+  3. the x86-64 allows you  to **move only a 32-bit constant value into a 64-bit memory location** (it will sign-extend this value to 64 bits).
+
+- The x86-64 **add and sub instructions** add or subtract two operands, however, **constant operands are limited to a maximum of 32 bits**. 
+
+  ~~~assembly
+  	.DATA
+  flag=1
+  var1 qword 1000
+  var2 qword 127
+  
+  	.CODE
+  asmFunc proc;
+  	mov RAX,var1;
+  	mov RBX,var2;
+  	add RAX,RBX;
+  	mov RCX,flag;
+  	sub RAX,RCX;
+  	ret;
+  asmFunc endp;
+  ~~~
+
+- the **lea** (load effective address)  instruction **load the address of a variable into a register**. 
+
+  ~~~assembly
+  lea reg64, memory_var;
+  ~~~
+
+  for example:
+
+  ~~~assembly
+  strVar byte "Some String", 0
+  lea rcx, strVar
+  ~~~
+
+  **Note:**
+
+  1. reg64 is any general-purpose **64-bit register**.
+  2. memory_var is a  **variable name**.
+  3. The lea instruction is roughly **equivalent** to the C/C++ **unary & (address-of)  operator**.
+
+- the **call and ret instructions** are used to **make function calls** (as well as write your own simple functions). The ret instruction serves the same purpose in an assembly language  program as the **return statement in C/C++**: it returns control from an assembly language procedure (assembly language functions are called **procedures**).
+
+  ~~~assembly
+  	.DATA
+  flag=1
+  var1 qword 1000
+  var2 qword 127
+  
+  	.CODE
+  asmFunc proc;
+  	mov RAX,var1;
+  	mov RBX,var2;
+  	add RAX,RBX;
+  	mov RCX,flag;
+  	sub RAX,RCX;
+  	ret;
+  asmFunc endp;
+  
+  main PROC
+  	call asmFunc
+  	ret
+  main ENDP
+  END
+  ~~~
+
+  **Note:**
+
+  1. unlike in C/C++,  the operand does **not specify a function return value**.
+
+### 1.7 Calling C/C++ Procedures
+
+- To call a procedure outside your source file, you need to use the MASM **externdef directive**. 
+
+  ~~~assembly
+  externdef symbol:type
+  ~~~
+
+  symbol is the external symbol you want to define, and type is the **type** of that symbol (which will be **proc** for **external procedure definitions**). When defining external procedure symbols, you should put the **externdef directive in your .code section**.
+
+  ~~~assembly
+  	.code
+  externdef printf:proc
+  ~~~
+
+  The externdef directive **doesn’t let you specify parameters** to pass to  the printf() procedure, Instead, you **should pass up to four parameters** to the printf() function in the x86-64 registers **RCX, RDX, R8, and R9**. The printf() function **requires that the first parameter be the address  of a format string**. Therefore, you **should load RCX with the address of a  zero-terminated string prior to calling printf()**. 
+
+- use printf() function to print helloworld:
+
+  ~~~assembly
+  ;asmHello.asm
+  	option casemap:none
+  	.data
+  fmtstr byte "hello,world",10,0
+  
+  	.code
+  	externdef print:proc
+  	
+  	public asmHello
+  asmHello proc
+  	sub RSP,56
+  	lea RCX,fmtstr
+  	call printf
+  	add RSP,56
+  	ret
+  asmHello endp
+  	end
+  ~~~
+
+  ~~~cpp
+  //helloworld.cpp
+  
+  extern "C"{
+      void helloworld(void);
+  }
+  
+  int main(){
+      helloworld();
+      return 0;
+  }
+  ~~~
+
+  ~~~cpp
+  //console
+  >ml64 /c helloworld.asm
+  >cl helloworld.cpp helloworld.obj
+  >helloworld
   ~~~
 
   
